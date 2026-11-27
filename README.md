@@ -170,7 +170,7 @@ speak("长文……", style="语速再慢一点")                # 叠加风格�
 |------|------|------|
 | `default_role` | str | 默认角色名 |
 | `active` | obj | `{mode: "auto"\|"primary", primary, secondary}`：`auto` = 主失败自动切备用，`primary` = 只用主 |
-| `providers` | list | 每项 `{name, priority, status, type, desc, env_key?}` |
+| `providers` | list | 每项 `{name, priority, status, type, desc, env_key?}`；`status` 仅作说明，`--list-providers` 的图标按 `active` 段推导（primary ✅ / secondary ⚠ / 其余 ❌） |
 | `roles` | obj | 每角色 `{voice_primary, voice_secondary}`，条目含 `provider`/`ref`/`voice`/`rate`/`pitch`/`speed`/`label` |
 | `moods` | obj | 每情绪 `{rate, pitch, label}` |
 | `mood_pool` | list | `--auto-mood` 的随机池（值须是 `moods` 的键） |

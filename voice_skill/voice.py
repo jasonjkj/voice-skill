@@ -114,9 +114,20 @@ def load_config() -> dict:
 
 
 def list_providers(cfg: dict) -> None:
+    act = cfg.get("active", {})
+    primary = act.get("primary")
+    mode = act.get("mode", "auto")
+    # 只有 mode!=primary 时 secondary 才真正进回退链（与 _provider_order 一致）
+    secondary = act.get("secondary") if mode != "primary" else None
     for p in cfg["providers"]:
-        status = "✅" if p["status"] == "active" else "❌"
-        print(f"  {status} [{p['priority']}] {p['name']} — {p['desc']}")
+        name = p["name"]
+        if name == primary:
+            status = "✅"
+        elif name == secondary:
+            status = "⚠"
+        else:
+            status = "❌"
+        print(f"  {status} [{p['priority']}] {name} — {p['desc']}")
     role_name = cfg.get("default_role", "default")
     r = cfg["roles"][role_name]
     vp = r.get("voice_primary", {})

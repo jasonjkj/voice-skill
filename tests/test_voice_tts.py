@@ -346,6 +346,40 @@ class TestProviderOrder(unittest.TestCase):
         self.assertEqual(voice_mod._provider_order({}, None), ["edge", "mimo", None])
 
 
+class TestListProviders(unittest.TestCase):
+    def _cfg(self, mode="auto"):
+        return {
+            "active": {"mode": mode, "primary": "mimo-clone", "secondary": "edge"},
+            "providers": [
+                {"name": "mimo-clone", "priority": 0, "status": "standby", "desc": "克隆"},
+                {"name": "mimo", "priority": 1, "status": "standby", "desc": "预置"},
+                {"name": "edge", "priority": 2, "status": "active", "desc": "兜底"},
+            ],
+            "roles": {"default": {"voice_primary": {}, "voice_secondary": {}}},
+        }
+
+    def _line_for(self, out, name):
+        return next(ln for ln in out.splitlines() if f"] {name} " in ln)
+
+    def test_icons_follow_active_not_static_status(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            voice_mod.list_providers(self._cfg(mode="auto"))
+        out = buf.getvalue()
+        # primary 用 ✅、secondary 用 ⚠、其余 ❌；与静态 status 字段无关
+        self.assertIn("✅", self._line_for(out, "mimo-clone"))
+        self.assertIn("⚠", self._line_for(out, "edge"))
+        self.assertIn("❌", self._line_for(out, "mimo"))
+
+    def test_primary_mode_marks_secondary_inactive(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            voice_mod.list_providers(self._cfg(mode="primary"))
+        out = buf.getvalue()
+        self.assertIn("✅", self._line_for(out, "mimo-clone"))
+        self.assertIn("❌", self._line_for(out, "edge"))
+
+
 class TestSpeakMimoClone(unittest.TestCase):
     def setUp(self):
         self._td = tempfile.TemporaryDirectory()
