@@ -114,4 +114,5 @@ edge 免费接口高频会限流，内置 1 次 2s 重试。
 | `VOICE_CONFIG_PATH` | 显式配置文件路径（最高优先） | 未设 |
 | `VOICE_MOOD_JSON` | 外部情绪 JSON 路径（读 `mood` 段定声线） | 空（→ `default` 档） |
 | `VOICE_CACHE` | 输出目录覆盖 | `VOICE_HOME/out/` |
-| `MIMO_API_KEY` | MiMo key | 环境变量 → `VOICE_HOME/.env` |
+| `VOICE_DOTENV` | 显式指定 `.env` 文件（最高优先） | 未设 |
+| `MIMO_API_KEY` | MiMo key | 环境变量 → `VOICE_DOTENV` → `VOICE_HOME/.env` → 向上找仓根 `.env` |

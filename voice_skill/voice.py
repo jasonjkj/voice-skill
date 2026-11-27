@@ -25,6 +25,7 @@ roles + moods + voice_modes + voices 音色预置）。
 from __future__ import annotations
 
 import argparse
+import base64
 import importlib.resources
 import json
 import os
@@ -221,14 +222,45 @@ def _resolve_ref(ref: str) -> Path:
     return p
 
 
+def _dotenv_candidates():
+    """MIMO key 的 .env 查找顺序：VOICE_DOTENV → VOICE_HOME → 包目录向上 3 层 → 用户级。
+
+    为什么不只认 `VOICE_HOME/.env`：调用方通常把密钥放**仓根 `.env`**，
+    而本包常被内联到 `vendor/<pkg>/` 这类子目录里——仓根在包目录上方几层，
+    只认 `VOICE_HOME` 的表现是「key 明明配了却读不到」，克隆档静默降级成兜底音色。
+    """
+    explicit = os.environ.get("VOICE_DOTENV", "").strip()
+    if explicit:
+        yield Path(explicit).expanduser()
+    yield _home() / ".env"
+    here = Path(__file__).resolve().parent
+    for depth in range(3):  # 包目录 → 上一级 → 再上一级
+        try:
+            yield here.parents[depth] / ".env"
+        except IndexError:
+            break
+    yield Path.home() / ".config" / "voice-skill" / ".env"
+
+
 def _load_mimo_key() -> str | None:
-    """读 MIMO_API_KEY：环境变量 > VOICE_HOME/.env。"""
+    """读 MIMO_API_KEY：环境变量 > `_dotenv_candidates()` 逐个 .env（命中即写回 env）。"""
     key = os.environ.get("MIMO_API_KEY")
     if key:
         return key
-    dotenv = _home() / ".env"
-    if dotenv.exists():
-        for line in dotenv.read_text(encoding="utf-8").splitlines():
+    seen: set[Path] = set()
+    for dotenv in _dotenv_candidates():
+        try:
+            dotenv = dotenv.resolve()
+        except OSError:
+            continue
+        if dotenv in seen or not dotenv.exists():
+            continue
+        seen.add(dotenv)
+        try:
+            lines = dotenv.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
             line = line.strip()
             if line.startswith("MIMO_API_KEY="):
                 key = line.split("=", 1)[1].strip()
@@ -320,8 +352,6 @@ def _clone_synthesize(client, text: str, mime: str, ref_b64: str, style: str) ->
     data = getattr(audio, "data", None)
     if not data:
         raise RuntimeError("合成返回空音频")
-    import base64
-
     return base64.b64decode(data)
 
 
@@ -341,24 +371,29 @@ def mimo_clone_tts(text: str, ref: Path, out: Path, style: str = "") -> bool:
     if not api_key:
         print("voiceclone: 缺少 MIMO_API_KEY 环境变量", file=sys.stderr)
         return False
-    try:
-        from openai import OpenAI
-        import base64
-    except ImportError:
-        print("voiceclone: openai 未安装", file=sys.stderr)
-        return False
 
-    size = ref_path.stat().st_size
-    if size > 7_500_000:
-        print(f"voiceclone: 参考音频 {size}B 超 7.5MB 上限", file=sys.stderr)
-        return False
-    mime = "audio/wav" if str(ref_path).lower().endswith(".wav") else "audio/mpeg"
-    b64 = base64.b64encode(ref_path.read_bytes()).decode()
-
+    # 先做纯本地校验（分段/体积），再决定要不要拉依赖、打 API
     segments = split_tts_text(text)
     if not segments:
         print("voiceclone: 文本为空", file=sys.stderr)
         return False
+    if len(text) > CLONE_SEGMENT_MAX_CHARS and len(segments) == 1:
+        # 防御：分段逻辑一旦退化就退回单次合成 → 模型在 ~60s 处收尾，成品只剩半截。
+        # 宁可报错走兜底，也不要交出半截音频。
+        print("voiceclone ❌: 长文没有被分段（分段逻辑异常）", file=sys.stderr)
+        return False
+    size = ref_path.stat().st_size
+    if size > 7_500_000:
+        print(f"voiceclone: 参考音频 {size}B 超 7.5MB 上限", file=sys.stderr)
+        return False
+
+    try:
+        from openai import OpenAI
+    except ImportError:
+        print("voiceclone: openai 未安装", file=sys.stderr)
+        return False
+    mime = "audio/wav" if str(ref_path).lower().endswith(".wav") else "audio/mpeg"
+    b64 = base64.b64encode(ref_path.read_bytes()).decode()
 
     try:
         client = OpenAI(api_key=api_key, base_url="https://api.xiaomimimo.com/v1")
@@ -383,6 +418,13 @@ def mimo_clone_tts(text: str, ref: Path, out: Path, style: str = "") -> bool:
                     part = out.with_name(f".voiceclone_{os.getpid()}_{idx}.wav")
                 part.write_bytes(data)
                 parts.append(part)
+                if len(segments) > 1:
+                    d = wav_duration(data)
+                    if d:
+                        print(
+                            f"voiceclone: 第 {idx}/{len(segments)} 段 {d:.1f}s / {len(segment)} 字",
+                            file=sys.stderr,
+                        )
         except Exception as e:
             print(f"voiceclone ❌: {e}", file=sys.stderr)
             return False
@@ -409,7 +451,7 @@ def mimo_clone_tts(text: str, ref: Path, out: Path, style: str = "") -> bool:
         if r.returncode != 0 or not out.exists():
             print(f"voiceclone 转码 ❌: {r.stderr.strip()}", file=sys.stderr)
             return False
-        print(f"voiceclone ✅: {out}")
+        print(f"voiceclone ✅: {out}（{len(segments)} 段 / {len(text)} 字）")
         return True
     finally:
         for path in [*parts, listfile, joined]:
@@ -419,6 +461,44 @@ def mimo_clone_tts(text: str, ref: Path, out: Path, style: str = "") -> bool:
                 path.unlink()
             except OSError:
                 pass
+
+
+def wav_duration(data: bytes) -> float | None:
+    """从 WAV 字节头算时长（秒），不依赖 ffprobe。算不出 → None。
+
+    用途：逐段核对「字数 vs 时长」，某段明显偏短就是模型提前收尾（截断）。
+    """
+    try:
+        import io
+        import wave
+
+        with wave.open(io.BytesIO(data), "rb") as w:
+            frames = w.getnframes()
+            rate = w.getframerate()
+            return frames / float(rate) if rate else None
+    except Exception:
+        return None
+
+
+def probe_duration(audio: Path) -> float | None:
+    """读成品音频时长（秒）。ffprobe 不可用/读失败 → None，绝不抛。"""
+    import shutil
+
+    ffprobe = shutil.which("ffprobe")
+    if not ffprobe:
+        return None
+    try:
+        r = subprocess.run(
+            [ffprobe, "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=nw=1:nk=1", str(audio)],
+            capture_output=True, text=True, timeout=30,
+        )
+        if r.returncode != 0:
+            return None
+        return float(r.stdout.strip())
+    except Exception:
+        # 纯诊断用途：任何异常都不该影响合成结果
+        return None
 
 
 def ffmpeg_speedup(audio: Path, speed: float) -> bool:
@@ -570,18 +650,25 @@ def speak(
     mood_name, mood_cfg = _resolve_speech_mood(cfg, mood, auto_mood)
     role_cfg = cfg.get("roles", {}).get(role, {})
 
+    def _done() -> str:
+        # 成品时长打到 stderr：字不少却明显偏短 = 截断，一眼可见。
+        dur = probe_duration(out_path)
+        if dur:
+            print(f"语音时长 {dur:.1f}s（{len(text)} 字）", file=sys.stderr)
+        return str(out_path)
+
     for p in _provider_order(cfg, provider):
         if p is None:
             break
         if p == "edge":
             if _speak_edge(text, out_path, mood_cfg, role, voice, role_cfg):
-                return str(out_path)
+                return _done()
         elif p == "mimo":
             if _speak_mimo(text, out_path, mood_cfg, preset, speed, role_cfg, cfg):
-                return str(out_path)
+                return _done()
         elif p == "mimo-clone":
             if _speak_mimo_clone(text, out_path, speed, role_cfg, cfg, mood_name, style):
-                return str(out_path)
+                return _done()
         else:
             print(f"未知 provider: {p}", file=sys.stderr)
         print(f"{p} 失败，尝试下一个…", file=sys.stderr)

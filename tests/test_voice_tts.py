@@ -574,3 +574,65 @@ class TestEdgeFailureCleanup(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCloneSegmentationGuard(unittest.TestCase):
+    """60s 截断的两道闸：长文必须分段；分段失效要报错而不是交半截。"""
+
+    def setUp(self):
+        self._td = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._td.name)
+        self.ref = self.tmp / "ref.mp3"
+        self.ref.write_bytes(b"FAKEREF" * 8)
+        self.out = self.tmp / "out.mp3"
+        self._env_patch = mock.patch.dict(os.environ, {"MIMO_API_KEY": "sk-test"})
+        self._env_patch.start()
+        self.addCleanup(self._env_patch.stop)
+
+    def tearDown(self):
+        self._td.cleanup()
+
+    def test_long_text_not_split_aborts(self):
+        """分段逻辑退化（长文只切出 1 段）→ 直接失败，绝不单次合成后当成品。"""
+        long_text = "啊" * 200
+        buf = io.StringIO()
+        with mock.patch.object(voice_mod, "split_tts_text", return_value=[long_text]), \
+                mock.patch.object(voice_mod, "_clone_synthesize") as synth, \
+                contextlib.redirect_stderr(buf):
+            ok = voice_mod.mimo_clone_tts(long_text, self.ref, self.out, "")
+        self.assertFalse(ok)
+        self.assertIn("长文没有被分段", buf.getvalue())
+        synth.assert_not_called()  # 连 API 都不该打
+        self.assertFalse(self.out.exists())
+
+    def test_short_text_single_segment_allowed(self):
+        """短文本单段是正常路径，不受守卫影响（失败原因是缺 openai，不是守卫）。"""
+        buf = io.StringIO()
+        with mock.patch.dict(sys.modules, {"openai": None}), contextlib.redirect_stderr(buf):
+            ok = voice_mod.mimo_clone_tts("你好", self.ref, self.out, "")
+        self.assertFalse(ok)
+        self.assertNotIn("长文没有被分段", buf.getvalue())
+
+
+class TestWavDuration(unittest.TestCase):
+    def _wav(self, seconds: float, rate: int = 24000) -> bytes:
+        import io as _io
+        import wave
+
+        buf = _io.BytesIO()
+        with wave.open(buf, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(rate)
+            w.writeframes(b"\x00\x00" * int(rate * seconds))
+        return buf.getvalue()
+
+    def test_duration_from_header(self):
+        self.assertAlmostEqual(voice_mod.wav_duration(self._wav(2.0)), 2.0, places=2)
+
+    def test_garbage_returns_none(self):
+        self.assertIsNone(voice_mod.wav_duration(b"not-a-wav"))
+
+    def test_probe_duration_missing_file_returns_none(self):
+        # 不存在/不可解析 → None，不抛
+        self.assertIsNone(voice_mod.probe_duration(Path("/nonexistent/x.mp3")))

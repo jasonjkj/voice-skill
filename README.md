@@ -198,7 +198,8 @@ speak("长文……", style="语速再慢一点")                # 叠加风格�
 | `VOICE_CONFIG_PATH` | 显式配置文件路径（最高优先） | 未设 |
 | `VOICE_MOOD_JSON` | 外部情绪 JSON 路径（读 `mood` 段定声线） | 空（→ `default` 档） |
 | `VOICE_CACHE` | 输出目录覆盖 | `VOICE_HOME/out/` |
-| `MIMO_API_KEY` | MiMo 的 key（克隆 / `mimo` 才需要） | 环境变量 → `VOICE_HOME/.env` |
+| `VOICE_DOTENV` | 显式指定某个 `.env` 文件（最高优先） | 未设 |
+| `MIMO_API_KEY` | MiMo 的 key（克隆 / `mimo` 才需要） | 环境变量 → `VOICE_DOTENV` → `VOICE_HOME/.env` → 包目录向上 3 层的 `.env`（仓根）→ `~/.config/voice-skill/.env` |
 
 ## 9. 测试
 
@@ -216,9 +217,11 @@ python3 -m pytest tests/ -q
 ## 10. 已知限制
 
 - **edge 限流**：微软免费接口高频会 `NoAudioReceived`，内置 1 次 2s 重试；仍失败则本次合成失败。
-- **克隆会被截断**：单次 voiceclone 偶尔在 ~60 秒音频处提前收尾。
-  正文超 120 字自动按标点分段合成再 `ffmpeg concat` 拼接；
-  任一段 `finish_reason=length` 直接判失败（半截音频不落盘），由 `active.mode=auto` 切兜底。
+- **克隆会被截断**：单次 voiceclone 偶尔在 ~60 秒音频处提前收尾（实测：229 字的散文只合到 60s）。
+  三道闸：① 正文超 120 字自动按标点分段，再 `ffmpeg concat` 拼接；
+  ② 任一段 `finish_reason=length` 直接判失败（半截音频不落盘），由 `active.mode=auto` 切兜底；
+  ③ 分段退化成长文只切出 1 段时直接报错，绝不单次合成后当成品。
+  stderr 会逐段打「第 i/n 段 x.xs / n 字」+ 成品总时长——**字不少却时长偏短就是截断**，一眼可见。
 - **参考音频 ≤ 7.5MB**（base64 后），超了直接走兜底。
 - **克隆不吃 rate/pitch**：情绪靠 `clone_styles` 文案注入，物理提速只能靠 `--speed`（ffmpeg atempo）。
 - **只做出向**：本包是「文本 → 音频」，不做语音识别。

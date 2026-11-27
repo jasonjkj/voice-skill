@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "voice-skill"
-version = "0.2.0"
+version = "0.2.1"
 description = "多声线 TTS 合成：8 档情绪声线，edge 免费兜底，可选 MiMo 声线克隆"
 readme = "README.md"
 license = { text = "MIT" }
