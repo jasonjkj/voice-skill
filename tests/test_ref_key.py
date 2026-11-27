@@ -72,3 +72,13 @@ def test_missing_key_returns_none(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))  # 别读到真实用户级 .env
     monkeypatch.setattr(v, "__file__", str(tmp_path / "nowhere" / "voice_skill" / "voice.py"))
     assert v._load_mimo_key() is None
+
+
+def test_explicit_empty_key_disables_dotenv(monkeypatch, tmp_path):
+    """MIMO_API_KEY= 显式置空 → 跳过所有 .env，绝不读到调用方的真 key。"""
+    monkeypatch.delenv("VOICE_HOME", raising=False)
+    f = tmp_path / ".env"
+    f.write_text("MIMO_API_KEY=should-not-be-read\n", encoding="utf-8")
+    monkeypatch.setenv("VOICE_DOTENV", str(f))
+    monkeypatch.setenv("MIMO_API_KEY", "")
+    assert v._load_mimo_key() is None

@@ -243,10 +243,16 @@ def _dotenv_candidates():
 
 
 def _load_mimo_key() -> str | None:
-    """读 MIMO_API_KEY：环境变量 > `_dotenv_candidates()` 逐个 .env（命中即写回 env）。"""
+    """读 MIMO_API_KEY：环境变量 > `_dotenv_candidates()` 逐个 .env（命中即写回 env）。
+
+    `MIMO_API_KEY=` 显式置空 = 明确不要 key（跳过所有 .env），
+    用于测试隔离或「强制走兜底」——否则向上查找可能读到调用方仓根的真 key。
+    """
     key = os.environ.get("MIMO_API_KEY")
     if key:
         return key
+    if "MIMO_API_KEY" in os.environ:
+        return None
     seen: set[Path] = set()
     for dotenv in _dotenv_candidates():
         try:

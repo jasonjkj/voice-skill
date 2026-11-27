@@ -50,6 +50,9 @@ def _base_env(tmp_path: Path, *, voice_config_path=None, extra=None) -> dict:
         "VOICE_HOME": str(tmp_path),
         "HOME": str(home),
         "PYTHONIOENCODING": "utf-8",
+        # 显式置空 = 不要 key：否则向上查找会读到调用方仓根的真 .env，
+        # 「缺 key」用例会变成真打 API。
+        "MIMO_API_KEY": "",
     }
     if voice_config_path is not None:
         env["VOICE_CONFIG_PATH"] = str(voice_config_path)
