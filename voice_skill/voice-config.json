@@ -1,0 +1,238 @@
+{
+  "default_role": "default",
+  "active": {
+    "mode": "auto",
+    "primary": "edge",
+    "secondary": "mimo-clone"
+  },
+  "providers": [
+    {
+      "name": "mimo-clone",
+      "priority": 0,
+      "status": "standby",
+      "type": "builtin",
+      "desc": "小米 MiMo-V2.5-TTS-VoiceClone（参考音频复刻声线；需自备 refs/ 参考音频与 MIMO_API_KEY，默认关闭）",
+      "env_key": "MIMO_API_KEY"
+    },
+    {
+      "name": "mimo",
+      "priority": 1,
+      "status": "standby",
+      "type": "python",
+      "desc": "小米 MiMo TTS（voicedesign 定制声线，走 voices 预置，备用）",
+      "env_key": "MIMO_API_KEY"
+    },
+    {
+      "name": "edge",
+      "priority": 2,
+      "status": "active",
+      "type": "builtin",
+      "desc": "微软 edge-tts（免费，无需 key，兜底线）",
+      "provider": "edge"
+    }
+  ],
+  "roles": {
+    "default": {
+      "voice_primary": {
+        "provider": "mimo-clone",
+        "ref": "refs/example-reference.mp3",
+        "speed": 1.0,
+        "label": "克隆声线（参考包内示例音频，可换成你自己的）"
+      },
+      "voice_secondary": {
+        "provider": "edge",
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "rate": "+0%",
+        "pitch": "+0Hz",
+        "label": "edge 晓晓（免费兜底）"
+      }
+    }
+  },
+  "moods": {
+    "default": {
+      "rate": "+0%",
+      "pitch": "+0Hz",
+      "label": "原声"
+    },
+    "喜庆": {
+      "rate": "+30%",
+      "pitch": "+20Hz",
+      "label": "明快高昂"
+    },
+    "开心": {
+      "rate": "+30%",
+      "pitch": "+20Hz",
+      "label": "轻快"
+    },
+    "温柔": {
+      "rate": "+0%",
+      "pitch": "+5Hz",
+      "label": "柔和"
+    },
+    "魅惑": {
+      "rate": "+15%",
+      "pitch": "+8Hz",
+      "label": "低声轻缓"
+    },
+    "清醒": {
+      "rate": "+0%",
+      "pitch": "-15Hz",
+      "label": "平稳干脆"
+    },
+    "冷面": {
+      "rate": "+20%",
+      "pitch": "-20Hz",
+      "label": "干脆利落"
+    },
+    "热烈": {
+      "rate": "+20%",
+      "pitch": "+5Hz",
+      "label": "饱满有力"
+    },
+    "傲娇": {
+      "rate": "+20%",
+      "pitch": "+10Hz",
+      "label": "轻快上扬"
+    },
+    "急促": {
+      "rate": "+50%",
+      "pitch": "-20Hz",
+      "label": "语速拉紧"
+    },
+    "慵懒": {
+      "rate": "-15%",
+      "pitch": "-10Hz",
+      "label": "低沉松弛"
+    },
+    "严肃": {
+      "rate": "+0%",
+      "pitch": "-15Hz",
+      "label": "沉稳"
+    },
+    "俏皮": {
+      "rate": "+25%",
+      "pitch": "+15Hz",
+      "label": "活泼"
+    },
+    "深沉": {
+      "rate": "-10%",
+      "pitch": "-10Hz",
+      "label": "低缓有分量"
+    },
+    "深夜": {
+      "rate": "-10%",
+      "pitch": "-5Hz",
+      "label": "轻声"
+    }
+  },
+  "voice_modes": {
+    "温柔": {
+      "mood": "温柔",
+      "label": "🌙 温柔",
+      "desc": "语速舒缓，语气柔和",
+      "rate": "+0%",
+      "pitch": "+5Hz",
+      "emotion_id": "tender"
+    },
+    "魅惑": {
+      "mood": "魅惑",
+      "label": "🔥 魅惑",
+      "desc": "语速略快，尾音轻扬",
+      "rate": "+15%",
+      "pitch": "+8Hz",
+      "emotion_id": "teasing"
+    },
+    "清醒": {
+      "mood": "清醒",
+      "label": "🧠 清醒",
+      "desc": "语速平稳，吐字干脆",
+      "rate": "+0%",
+      "pitch": "-15Hz",
+      "emotion_id": "sharp"
+    },
+    "冷面": {
+      "mood": "冷面",
+      "label": "❄️ 冷面",
+      "desc": "简短果断，音高偏低",
+      "rate": "+20%",
+      "pitch": "-20Hz"
+    },
+    "热烈": {
+      "mood": "热烈",
+      "label": "⚡ 热烈",
+      "desc": "语速偏快，语气饱满",
+      "rate": "+20%",
+      "pitch": "+5Hz",
+      "emotion_id": "fierce"
+    },
+    "俏皮": {
+      "mood": "俏皮",
+      "label": "😋 俏皮",
+      "desc": "语速轻快，尾音上挑",
+      "rate": "+15%",
+      "pitch": "+10Hz",
+      "emotion_id": "playful"
+    },
+    "深沉": {
+      "mood": "深沉",
+      "label": "🌘 深沉",
+      "desc": "语速偏慢，音高偏低",
+      "rate": "-10%",
+      "pitch": "-10Hz",
+      "emotion_id": "deep"
+    },
+    "慵懒": {
+      "mood": "慵懒",
+      "label": "😴 慵懒",
+      "desc": "拖尾带倦，节奏松弛",
+      "rate": "-20%",
+      "pitch": "+0Hz",
+      "emotion_id": "lazy"
+    }
+  },
+  "clone_styles": {
+    "温柔": "请用柔和舒缓的语气朗读，轻声细语，节奏平稳；句尾收稳收清，不飘。",
+    "魅惑": "语速略快，尾音轻轻上扬，音色偏柔。",
+    "清醒": "语速平稳干脆，条理清晰，不带多余情绪。",
+    "冷面": "简短果断，语气坚定，不拖泥带水；结尾干脆有力。",
+    "热烈": "情绪饱满，节奏偏快，重音明显。",
+    "俏皮": "活泼轻快，带着笑意，尾音上挑。",
+    "深沉": "低沉稳重，语速偏慢，句子之间留白。",
+    "慵懒": "节奏松弛，尾音略拖，音量偏轻。"
+  },
+  "mood_pool": [
+    "喜庆",
+    "开心",
+    "温柔",
+    "傲娇",
+    "急促",
+    "慵懒",
+    "俏皮",
+    "深夜"
+  ],
+  "role_voices": {
+    "default": "zh-CN-XiaoxiaoNeural"
+  },
+  "retry": {
+    "max_attempts": 2,
+    "delay_seconds": 1
+  },
+  "voices": {
+    "标准女声": {
+      "id": "标准女声",
+      "mode": "voicedesign",
+      "label": "普通话标准女声（通用基准）",
+      "voice_desc": "普通话标准青年中性女声。中音区为主，无尖锐尖细感，也不低沉厚重。音色通透干净，无沙哑、无过重鼻音、无气泡音。咬字标准规整，声母韵母区分明确，连读自然不糊音，长句与专业名词也能清晰传递。声场贴近日常面对面近距离交谈，距离感弱。不做风格化标签，无滤镜、无口音修饰、无混响加成，最贴近原生标准化人声。",
+      "style": "语速适中平稳，约一倍速，不加速不拖沓。断句自然舒缓，贴合日常口语逻辑。语调平缓克制，起伏小，情绪温和理性、亲和力强，仅随语义做极轻微波动。实词重读、虚词轻读。正式场景不随意，日常聊天不生硬。长句停顿自然，专业名词咬字清晰。适配闲聊答疑、科普讲解、文案朗读与事务播报。",
+      "notes": "通用基准款。"
+    },
+    "年轻女声": {
+      "id": "年轻女声",
+      "mode": "voicedesign",
+      "label": "年轻女声（日常朗读）",
+      "voice_desc": "一位二十多岁的年轻女性声音。声线偏亮、清澈，中高频顺耳但不刺耳；音量稳定，咬字清晰、口语感强。气质像友善的语音助手：亲切、温和，不端着播音腔，也不幼稚。共鸣适中偏靠前，尾音自然收束，略带轻松感。整体听感干净、现代、好懂。",
+      "style": "语速中等偏慢，句间留白自然，像在给朋友讲一段内容。",
+      "notes": "备选款。"
+    }
+  }
+}

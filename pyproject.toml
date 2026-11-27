@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voice-skill"
+version = "0.2.0"
+description = "多声线 TTS 合成：8 档情绪声线，edge 免费兜底，可选 MiMo 声线克隆"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = ["tts", "text-to-speech", "voice-clone", "edge-tts", "mimo"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Typing :: Typed",
+]
+dependencies = ["openai", "edge-tts"]
+
+[project.urls]
+Homepage = "https://github.com/jasonjkj/voice-skill"
+Issues = "https://github.com/jasonjkj/voice-skill/issues"
+
+[project.scripts]
+voice-bff = "voice_skill.speak:main"
+
+[tool.setuptools]
+packages = ["voice_skill"]
+
+[tool.setuptools.package-data]
+voice_skill = ["refs/*.mp3", "voice-config.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
